@@ -8,8 +8,9 @@ mod mac;
 mod node;
 
 pub use mac::format_macro;
+use serde::Deserialize;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Deserialize)]
 pub enum AttributeValueBraceStyle {
     Always,
     AlwaysUnlessLit,
@@ -17,7 +18,8 @@ pub enum AttributeValueBraceStyle {
     Preserve,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Deserialize)]
+#[serde(default)] 
 pub struct FormatterSettings {
     // Maximum width of each line
     pub max_width: usize,

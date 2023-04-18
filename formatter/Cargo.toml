@@ -15,6 +15,7 @@ leptosfmt-prettyplease = { features = ["verbatim"], version = "0.1" }
 proc-macro2 = { version = "1.0.52", features = ["span-locations"] }
 thiserror = "1.0.40"
 crop = "0.1.0"
+serde = { version = "1.0.160", features = ["derive"] }
 
 [dev-dependencies]
 indoc = "2.0.1"

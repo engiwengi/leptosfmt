@@ -1,12 +1,12 @@
 use std::{
-    fs, panic,
+    env, fs, panic,
     path::{Path, PathBuf},
     time::Instant,
 };
 
 use clap::Parser;
 use glob::glob;
-use leptosfmt_formatter::{format_file, AttributeValueBraceStyle, FormatterSettings};
+use leptosfmt_formatter::{format_file, FormatterSettings};
 use rayon::{iter::ParallelIterator, prelude::IntoParallelIterator};
 
 /// A formatter for Leptos RSX sytnax
@@ -17,21 +17,27 @@ struct Args {
     input_pattern: String,
 
     // Maximum width of each line
-    #[arg(short, long, default_value_t = 100)]
-    max_width: usize,
+    #[arg(short, long)]
+    max_width: Option<usize>,
 
     // Number of spaces per tab
-    #[arg(short, long, default_value_t = 4)]
-    tab_spaces: usize,
+    #[arg(short, long)]
+    tab_spaces: Option<usize>,
+
+    // Config file
+    #[arg(short, long)]
+    config_file: Option<PathBuf>,
 }
 
 fn main() {
     let args = Args::parse();
 
-    let settings = FormatterSettings {
-        max_width: args.max_width,
-        tab_spaces: args.tab_spaces,
-        attr_value_brace_style: AttributeValueBraceStyle::WhenRequired,
+    let settings = match settings(&args) {
+        Ok(settings) => settings,
+        Err(err) => {
+            eprintln!("{}", err);
+            return;
+        }
     };
 
     let is_dir = fs::metadata(&args.input_pattern)
@@ -70,6 +76,43 @@ fn main() {
         total_files,
         (end_formatting - start_formatting).as_millis()
     )
+}
+
+fn settings(args: &Args) -> anyhow::Result<FormatterSettings> {
+    let mut settings: FormatterSettings =
+        if let Some(config_file) = args.config_file.clone().or_else(find_config) {
+            fs::read_to_string(config_file).map(|s| toml::from_str(&s))??
+        } else {
+            FormatterSettings::default()
+        };
+
+    if let Some(max_width) = args.max_width {
+        settings.max_width = max_width;
+    }
+
+    if let Some(tab_spaces) = args.tab_spaces {
+        settings.tab_spaces = tab_spaces;
+    }
+
+    Ok(settings)
+}
+
+fn find_config() -> Option<PathBuf> {
+    let mut path: PathBuf = env::current_dir().ok()?;
+    let file = Path::new("leptosfmt.toml");
+
+    loop {
+        path.push(file);
+
+        if path.is_file() {
+            println!("Discovered config at {}", path.display());
+            break Some(path);
+        }
+
+        if !(path.pop() && path.pop()) {
+            break None;
+        }
+    }
 }
 
 fn format_glob_result(file: &PathBuf, settings: FormatterSettings) -> anyhow::Result<()> {
